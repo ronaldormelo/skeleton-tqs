@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit backupGlobals="false"
+         backupStaticAttributes="false"
+         colors="true"
+         convertErrorsToExceptions="true"
+         convertNoticesToExceptions="true"
+         convertWarningsToExceptions="true"
+         processIsolation="false"
+         stopOnFailure="false"
+         syntaxCheck="false"			 
+         bootstrap="app/bootstrap.php">
+
+    <php>
+        <server name="KERNEL_DIR" value="app/" />
+    </php>
+
+    <testsuites>
+        <testsuite name="Calculo">            
+			<directory suffix="Test.php">src/Sapiens/CalculoBundle/Tests</directory>					
+        </testsuite>		
+    </testsuites>
+
+	<logging>
+		<log type="coverage-html" target="build/coverage/" yui="true" highlight="true" lowUpperBound="50" highLowerBound="80"/>
+		<log type="coverage-xml" target="build/coverage/xml"/>
+		<log type="coverage-clover" target="build/logs/clover.xml"/>
+		<log type="coverage-crap4j" target="build/logs/crap4j.xml"/>        
+		<log type="junit" target="build/logs/junit.xml" logIncompleteSkipped="false"/>
+		<log type="coverage-php" target="build/logs/phpunit.xml"/>
+	</logging>
+	
+	<filter>
+		<whitelist processUncoveredFilesFromWhitelist="true">
+			<directory suffix=".php">src/Sapiens/CalculoBundle</directory>
+			<exclude>
+				<directory>src/Sapiens/CalculoBundle/Resources</directory>				
+				<directory>src/Sapiens/CalculoBundle/DataFixtures</directory>				
+				<directory>src/Sapiens/CalculoBundle/Tests</directory>					
+			</exclude>
+		</whitelist>
+	</filter>
+
+    
+</phpunit>
+

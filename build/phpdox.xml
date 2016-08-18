@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<phpdox xmlns="http://xml.phpdox.net/config">
+ <project name="Sapiens" source="../src/Sapiens/AdministrativoBundle" workdir="${basedir}/api/xml">
+  <collector publiconly="false">
+   <include mask="*.php" />
+   <exclude mask="*autoload.php" />   
+   <exclude mask="../src/Sapiens/AdministrativoBundle/Resources"/>
+   <exclude mask="../src/Sapiens/AdministrativoBundle/DataFixtures"/>
+  </collector>
+  
+  <source type="phploc">
+	<file name="logs/phploc.xml" />
+  </source>
+
+  <generator output="${basedir}/api">
+      <build engine="html" output="html"/>
+  </generator>
+
+ </project>
+</phpdox>
+
