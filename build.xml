@@ -2,240 +2,236 @@
 <project name="G2" default="build">
 
  <!-- By default, we assume all tools to be on the $PATH -->
- <property name="toolsdir" value=""/>
+ <property name="toolsdir" value="${basedir}/build/tools/"/>
  <property name="applicationDir" value="${basedir}/application"/>
+ <property name="excludeDir" value="${basedir}/tests,${basedir}/scripts,${basedir}/library,${basedir}/docs,${basedir}/bin,${basedir}/public"/>
 
  <!-- Uncomment the following when the tools are in ${basedir}/vendor/bin -->
  <!-- <property name="toolsdir" value="${basedir}/vendor/bin/"/> -->
 
 <target name="build" 
-         depends="prepare,lint,phploc-ci,pdepend,phpmd-ci,phpcs-ci,phpcpd-ci,phpdox"
+         depends="prepare,phpunit,lint,phploc-ci,pdepend,phpmd-ci,phpcs-ci,phpcpd-ci,phpdox,phpcb,in-case-of-failure,in-case-of-success"
          description=""/>
 
     <target name="prepare"
          unless="prepare.done"
-         depends="clean"
          description="Prepara diretórios para build">
-		<mkdir dir="${basedir}/build/pdepend"/>
+
+		<delete dir="${basedir}/build/logs"/>  
+		<delete dir="${basedir}/build/codebrowser"/>  
+		<delete dir="${basedir}/build/coverage"/>
+		<delete dir="${basedir}/build/dependencies"/>
+		<delete dir="${basedir}/build/api"/>		 
+
+		<mkdir dir="${basedir}/build/logs"/>
+		<mkdir dir="${basedir}/build/codebrowser"/>
+		<mkdir dir="${basedir}/build/coverage"/>
+		<mkdir dir="${basedir}/build/dependencies"/>
+<!--	<mkdir dir="tests/build/output"/> -->
 		<mkdir dir="${basedir}/build/api"/>
-  
+
+		<!--Seta as permissões nas pastas -->
+        <chmod dir="${basedir}/build" perm="0755"/>
+        <chmod dir="${basedir}/build/logs" perm="0755"/>
+        <chmod dir="${basedir}/build/codebrowser" perm="0755"/>
+		<chmod dir="${basedir}/build/coverage" perm="0755"/>
+        <chmod dir="${basedir}/build/dependencies" perm="0755"/>
+        <chmod dir="${basedir}/build/api" perm="0755"/>
+		
 		<property name="prepare.done" value="true"/>
 	</target>
-		 	 
-    <target name="clean"
-         unless="clean.done"
-         description="Limpa build">
-		<delete dir="${basedir}/build/pdepend"/>
-		<delete dir="${basedir}/build/api"/>
-  
-		<property name="clean.done" value="true"/>
-	</target>
+		 	 	
+	<!-- PHPUnit -->	
+	<target name="phpunit" description="Executa os testes unitarios">
+        <exec executable="${toolsdir}phpunit.phar" failonerror="true">
+            <arg line="--configuration ${basedir}/build/phpunit.xml"/>
+        </exec>
+    </target>
 
-    <target name="lint"
+	<!-- PHPLINT CI -->
+	<target name="lint"
          unless="lint.done"
          description="Executa a verificação de sintaxe dos fontes">
-		<apply executable="php" failonerror="false" taskname="lint">
+		<!-- Verificar atributo failonerror="false" -->
+    	
+		<apply executable="php" failonerror="true" taskname="lint">
 			<arg value="-l" />
 
 			<fileset dir="${applicationDir}">
-				<include name="**/*.php" />
+				<include name="**/*.php" />				
+                <include name="**/*.phtml"/>
 				<modified />
 			</fileset>
+			
+			<fileset dir="${basedir}/library/G2">
+                <include name="**/*.php"/>
+                <modified/>
+            </fileset>
+			
 		</apply>
 
 		<property name="lint.done" value="false"/>
 	</target>
-
-	<!-- PHPLOC --> 
-    <target name="phploc"
-         unless="phploc.done"
-         description="Mede o tamanho do projeto usando PHPLOC. Destinado para uso na linha de comando.">
-		 <exec executable="${toolsdir}phploc" taskname="phploc">
-		  
-			<arg value="--exclude" />
-			<arg path="${applicationDir}/tests,${applicationDir}/DataFixtures" />
-		  
-			<arg value="--count-tests" />
-		   
-			<arg path="${applicationDir}" />   
-		 </exec>
-
-		  <property name="phploc.done" value="false"/>
-	 </target>
 
  <!-- PHPLOC CI -->
     <target name="phploc-ci"
          unless="phploc.done"
          depends="prepare"
          description="Mede o tamanho do projeto usando PHPLOC e registra o log em CSV e XML. Destinado para uso dentro de um ambiente de integração contínua.">
-  <exec executable="${toolsdir}phploc" taskname="phploc">
-  
-   <arg value="--exclude" />
-   <arg path="${applicationDir}/tests,${applicationDir}/DataFixtures" />
-  
-   <arg value="--count-tests" />
-   
-   <arg value="--log-csv" />
-   <arg path="${basedir}/build/logs/phploc.csv" />
-   
-   <arg value="--log-xml" />
-   <arg path="${basedir}/build/logs/phploc.xml" />
-   
-   <arg path="${applicationDir}"/>   
-  </exec>
+		
+		<!-- Verificar atributo failonerror="false" -->
+		<exec executable="${toolsdir}phploc.phar" taskname="phploc">
+	  
+			<arg value="--exclude" />
+			<arg path="${excludeDir}" />
+			
+			<!--
+			<arg value="--ignore" />
+			<arg path="${excludeDir}" />
+			-->
+			<arg value="--count-tests" />
 
-  <property name="phploc.done" value="false"/>
- </target>
+			<arg value="--log-csv" />
+			<arg path="${basedir}/build/logs/phploc.csv" />
 
- <!-- PDEPEND -->
+			<arg value="--log-xml" />
+			<arg path="${basedir}/build/logs/phploc.xml" />
+
+			<arg path="${basedir}"/>   
+		</exec>
+
+		<property name="phploc.done" value="false"/>
+	</target>
+
+	<!-- PDEPEND -->
     <target name="pdepend"
          unless="pdepend.done"
          depends="prepare"
          description="Calcula métricas de software usando PHP_Depend e registra o log em formato XML. Destinado para uso dentro de um ambiente de integração contínua.">
-   <exec executable="${toolsdir}pdepend" taskname="pdepend">
-  
-   <arg value="--ignore=${applicationDir}/tests,${applicationDir}/Twig,${applicationDir}/DataFixtures" />
-  
-   <arg value="--jdepend-xml=${basedir}/build/logs/jdepend.xml" />
-   
-   <arg value="--jdepend-chart=${basedir}/build/pdepend/dependencies.svg" />   
-   
-   <arg value="--overview-pyramid=${basedir}/build/pdepend/overview-pyramid.svg" />       
-   
-   <arg value="--suffix=php" />
-   
-   <arg path="${applicationDir}" />
-   
-  </exec>
 
-  <property name="pdepend.done" value="true"/>
- </target>
+		 <!-- Verificar atributo failonerror="false" -->
+		<exec executable="${toolsdir}pdepend.phar" taskname="pdepend">
+
+			
+			<arg value="--ignore=${excludeDir}" />
+			
+			<arg value="--jdepend-xml=${basedir}/build/logs/jdepend.xml" />
+
+			<arg value="--jdepend-chart=${basedir}/build/dependencies/dependencies.svg" />   
+
+			<arg value="--overview-pyramid=${basedir}/build/dependencies/overview-pyramid.svg" />       
+
+			<arg value="--suffix=php" />
+
+			<arg path="${basedir}" />
+		   
+		</exec>
+
+		<property name="pdepend.done" value="true"/>
+	</target>
  
- <!-- PHPMD -->
-    <target name="phpmd"
-         unless="phpmd.done"
-         description="Realiza a detecção de código inútil no projeto usando PHPMD. Destinado para uso em linha de comando.">
-  <exec executable="${phpmd}" taskname="phpmd">
-   <arg path="${basedir}/src" />
-   <arg value="text" />
-   <arg path="${basedir}/build/phpmd.xml" />
-  </exec>
-
-  <property name="phpmd.done" value="true"/>
- </target>
-
- <!-- PHPMD-CI -->
+	<!-- PHPMD-CI -->
     <target name="phpmd-ci"
          unless="phpmd.done"
          depends="prepare"
          description="Realiza a detecção de código inútil no projeto usando PHPMD. Destinado para uso dentro de um ambiente de integração contínua.">
-		 
-  <exec executable="${toolsdir}phpmd" taskname="phpmd">
-   
-    <arg path="${applicationDir}" />
+		
+		<!-- Verificar atributo failonerror="false" -->		
+		<exec executable="${toolsdir}phpmd.phar" taskname="phpmd">
+		   
+			<arg path="${basedir}" />
 
-    <arg value="xml" />   
-    <arg path="${basedir}/build/phpmd.xml" />
-   
-    <arg value="--reportfile-xml" />   
-    <arg path="${basedir}/build/logs/pmd.xml" />
-	
-	<arg value="--reportfile-html" />   
-    <arg path="${basedir}/build/logs/pmd.html" />
-   
-    <arg value="--exclude" />
-    <arg value="${applicationDir}/tests,${applicationDir}/DataFixtures" />
-   
-  </exec>
+			<arg value="xml" />   
+			<arg path="${basedir}/build/phpmd.xml" />
+		   
+			<arg value="--reportfile-xml" />   
+			<arg path="${basedir}/build/logs/pmd.xml" />
+			
+			<arg value="--reportfile-html" />   
+			<arg path="${basedir}/build/logs/pmd.html" />
+		   
+			<arg value="--exclude" />
+			<arg value="${excludeDir}" />
+			
+			<!--
+			<arg value="--ignore" />
+			<arg value="${excludeDir}" />
+			-->
+		   
+		</exec>
 
-  <property name="phpmd.done" value="true"/>
- </target>
+		<property name="phpmd.done" value="true"/>
+	</target>
 
- <!-- PHPCS -->
-    <target name="phpcs"
-         unless="phpcs.done"
-         description="Encontra violações de código usando PHP_CodeSniffer e imprime saída legível. Destinado para uso na linha de comando.">
-  <exec executable="${toolsdir}phpcs" taskname="phpcs">
-  
-   <arg value="--standard=PSR2" />
-   
-   <arg value="--ignore=${applicationDir}/DataFixtures" />
-   
-   <arg value="--extensions=php" />         
-   
-   <arg path="${applicationDir}" />      
-   
-  </exec>
-  
-  <property name="phpcs.done" value="false"/>
- </target>
-
- <!-- PHPCS CI -->
+	<!-- PHPCS CI -->
     <target name="phpcs-ci"
          unless="phpcs.done"
          depends="prepare"
          description="Encontra violações de codigo usando PHP_CodeSniffer e salva o log em formato XML. Destinado para uso dentro de um ambiente de integração contínua.">
-  <exec executable="${toolsdir}phpcs" output="/dev/null" taskname="phpcs">
-  
-   <arg value="--report=checkstyle" />
-   
-   <arg value="--report-file=${basedir}/build/logs/checkstyle.xml" />
-   
-   <arg value="--standard=PSR2" />
-   
-   <arg value="--ignore=${applicationDir}/DataFixtures" />
-   
-   <arg value="--extensions=php" />
-   
-   <arg path="${applicationDir}" />         
-  </exec>
+		 
+		<!-- Verificar atributo failonerror="false" -->
+		<exec executable="${toolsdir}phpcs.phar" output="/dev/null" taskname="phpcs">
+		  
+		   <arg value="--report=checkstyle" />
+		   
+		   <arg value="--report-file=${basedir}/build/logs/checkstyle.xml" />
+		   
+		   <arg value="--standard=PSR2" />
+		   
+		   <arg value="--ignore=${excludeDir}" /> -->
+		   
+		   <arg value="--extensions=php" />
+		   
+		   <arg path="${basedir}" />         
+		</exec>
 
-  <property name="phpcs.done" value="false"/>
- </target>
-
- <!-- PHPCPD -->
-    <target name="phpcpd"
-         unless="phpcpd.done"
-         description="Encontra código duplicado usando PHPCPD e imprime saída legível. Destinado para uso na linha de comando.">
-  <exec executable="${toolsdir}phpcpd" taskname="phpcpd">
-      
-   <arg value="--exclude" />
-   <arg path="${applicationDir}/DataFixtures" />  
-	  
-   <arg path="${applicationDir}" />  
-  </exec>
-
-  <property name="phpcpd.done" value="false"/>
- </target>
+		<property name="phpcs.done" value="false"/>
+	</target>
 
  <!-- PHPCPD CI -->
     <target name="phpcpd-ci"
          unless="phpcpd.done"
          depends="prepare"
          description="Encontra código duplicado usando PHPCPD e salva o log em formato XML. Destinado para uso dentro de um ambiente de integração contínua.">
-  <exec executable="${toolsdir}phpcpd" taskname="phpcpd">
-  
-   <arg value="--log-pmd" />
-   <arg path="${basedir}/build/logs/pmd-cpd.xml" />
-   
-   <arg value="--exclude" />
-   <arg path="${applicationDir}/DataFixtures" />
-   
-   <arg path="${applicationDir}" />  
-  </exec>
+		 
+		<!-- Verificar atributo failonerror="false" --> 
+		<exec executable="${toolsdir}phpcpd.phar" taskname="phpcpd">
+		  
+		   <arg value="--log-pmd" />
+		   <arg path="${basedir}/build/logs/pmd-cpd.xml" />
+		   
+		   <arg value="--exclude" />
+		   <arg path="${excludeDir}" />
+		   
+		   <arg path="${basedir}" />  
+		</exec>
 
-  <property name="phpcpd.done" value="false"/>
- </target> 
+		<property name="phpcpd.done" value="false"/>
+	</target> 
 
- <!-- PHPDOX -->
+	<!-- PHPDOX -->
     <target name="phpdox"
          unless="phpdox.done"
-         depends="phploc-ci,phpcs-ci"
+         depends="phploc-ci, phpcs-ci"
          description="Gerar documentação do projeto usando phpDox">
-  <exec executable="${toolsdir}phpdox" dir="${basedir}/build" taskname="phpdox"/>
+		<exec executable="${toolsdir}phpdox.phar" dir="${basedir}/build" taskname="phpdox"/>
 
-  <property name="phpdox.done" value="false"/>
- </target>
+		<property name="phpdox.done" value="false"/>
+	</target>
+		
+	<!-- PHPCB -->	
+	<target name="phpcb">
+        <exec executable="${toolsdir}phpcb.phar" failonerror="false">
+            <arg line="--log ${basedir}/build/logs --source ${basedir}/application --output ${basedir}/build/codebrowser"/>
+        </exec>
+    </target>
  
+	<target name="in-case-of-success" if="buildsuccess">
+        <echo>Build OK</echo>
+    </target>
+	
+    <target name="in-case-of-failure" if="buildfailed">
+        <fail>Build Fail</fail>
+    </target>
  
 </project>
